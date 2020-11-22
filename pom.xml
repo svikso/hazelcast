@@ -975,7 +975,7 @@
                                 ${vmHeapSettings}
                                 ${javaModuleArgs}
                                 -Dhazelcast.phone.home.enabled=false
-                                -Dhazelcast.logging.type=none
+                                -Dhazelcast.logging.type=log4j2
                                 -Dhazelcast.test.use.network=false
                                 -Dlog4j.skipJansi=true
                                 ${extraVmArgs}

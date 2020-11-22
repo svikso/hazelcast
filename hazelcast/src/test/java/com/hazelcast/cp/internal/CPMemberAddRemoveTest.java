@@ -36,10 +36,11 @@ import com.hazelcast.cp.lock.FencedLock;
 import com.hazelcast.instance.StaticMemberNodeContext;
 import com.hazelcast.instance.impl.Node;
 import com.hazelcast.instance.impl.NodeState;
+import com.hazelcast.logging.ILogger;
+import com.hazelcast.logging.Logger;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.annotation.ParallelJVMTest;
 import com.hazelcast.test.annotation.SlowTest;
-
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -736,19 +737,28 @@ public class CPMemberAddRemoveTest extends HazelcastRaftTestSupport {
 
     @Test
     public void when_snapshotIsTakenWhileRemovingCPMember_newMemberInstallsSnapshot() throws Exception {
+
+        ILogger debugLogger = Logger.getLogger("16574");
+
+        debugLogger.info("starting test");
+
         int nodeCount = 3;
         int commitIndexAdvanceCountToSnapshot = 50;
         Config config = createConfig(nodeCount, nodeCount);
         config.getCPSubsystemConfig().getRaftAlgorithmConfig()
                 .setCommitIndexAdvanceCountToSnapshot(commitIndexAdvanceCountToSnapshot);
 
+        debugLogger.info("starting Hezelcast instances");
         HazelcastInstance[] instances = new HazelcastInstance[nodeCount];
         for (int i = 0; i < nodeCount; i++) {
             instances[i] = factory.newHazelcastInstance(config);
         }
+        debugLogger.info("Hazelcast instances start was triggered");
 
         assertClusterSizeEventually(nodeCount, instances);
+        debugLogger.info("Waiting till CP discovery is completed");
         waitUntilCPDiscoveryCompleted(instances);
+        debugLogger.info("CP discovery is completed");
 
         // `commitIndexAdvanceCountToSnapshot - 5` is selected on purpose to partially include removal of CP member in snapshot.
         // Specifically, RemoveCPMemberOp will be in snapshot but CompleteRaftGroupMembershipChangesOp will not.
@@ -760,18 +770,27 @@ public class CPMemberAddRemoveTest extends HazelcastRaftTestSupport {
         // RemoveCPMemberOp will be in snapshot but CompleteRaftGroupMembershipChangesOp will not be included.
         instances[0].shutdown();
 
+        debugLogger.info("Creating new Hazelcast instance");
         HazelcastInstance newInstance = factory.newHazelcastInstance(config);
+
+        debugLogger.info("Promoting new instance to CP");
         newInstance.getCPSubsystem().getCPSubsystemManagementService().promoteToCPMember().toCompletableFuture().join();
 
+        debugLogger.info("get CP members");
         List<CPMember> cpMembers = new ArrayList<>(newInstance.getCPSubsystem()
                 .getCPSubsystemManagementService()
                 .getCPMembers()
                 .toCompletableFuture().join());
+        debugLogger.info("Final assertion");
 
         assertTrueEventually(() -> {
             RaftService service = getRaftService(newInstance);
+            debugLogger.info("getActiveMembers");
             List<CPMemberInfo> activeMembers = new ArrayList<>(service.getMetadataGroupManager().getActiveMembers());
+            debugLogger.info("Last check");
             assertEquals(cpMembers, activeMembers);
+            debugLogger.info("cpMembers:\n" + cpMembers);
+            debugLogger.info("activeMembers:\n" + activeMembers);
         });
     }
 

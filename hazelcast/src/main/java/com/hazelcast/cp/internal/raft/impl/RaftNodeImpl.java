@@ -1053,6 +1053,11 @@ public final class RaftNodeImpl implements RaftNode {
         // Nevertheless, I may not be present in the restored member list, which is ok.
 
         setStatus(ACTIVE);
+        try {
+            Thread.sleep(190000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         state.restoreGroupMembers(snapshot.groupMembersLogIndex(), snapshot.groupMembers());
         printMemberState();
 
